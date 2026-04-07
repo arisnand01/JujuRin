@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUJURin! — Game Kejujuran & Logika</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { display: ['Space Grotesk','sans-serif'], mono: ['JetBrains Mono','monospace'] },
+      colors: { brand: '#34d399', 'brand-dim': '#065f46', gold: '#fbbf24', danger: '#fb7185', surface: '#1c1917', base: '#0c0a09' }
+    }
+  }
+}
+</script>
+<style>
+  :root { --brand:#34d399; --brand-glow:rgba(52,211,153,.25); --gold:#fbbf24; --danger:#fb7185; --surface:#1c1917; --base:#0c0a09; --border:#44403c; --muted:#a8a29e; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior:smooth; }
+  body { font-family:'Space Grotesk',sans-serif; background:var(--base); color:#fafaf9; min-height:100dvh; overflow-x:hidden; }
+
+  /* Background grid */
+  .bg-grid { position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:radial-gradient(circle,rgba(52,211,153,.06) 1px,transparent 1px);
+    background-size:32px 32px; }
+  #bg-canvas { position:fixed;inset:0;z-index:0;pointer-events:none; }
+
+  /* Screens */
+  .screen { display:none; position:relative; z-index:1; min-height:100dvh; }
+  .screen.active { display:flex; flex-direction:column; }
+
+  /* Animations */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  @keyframes pulseGlow { 0%,100%{box-shadow:0 0 20px var(--brand-glow)} 50%{box-shadow:0 0 40px var(--brand-glow),0 0 60px rgba(52,211,153,.1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+  @keyframes typewrite { from{width:0} to{width:100%} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes slideDown { from{opacity:0;max-height:0} to{opacity:1;max-height:600px} }
+  @keyframes cellPop { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+  @keyframes logoReveal { 0%{opacity:0;transform:scale(.7) translateY(20px);filter:blur(10px)} 100%{opacity:1;transform:scale(1) translateY(0);filter:blur(0)} }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  @keyframes hashChar { 0%{opacity:0;transform:translateY(8px)} 100%{opacity:1;transform:translateY(0)} }
+
+  .anim-fade-up { animation:fadeUp .5s ease both; }
+  .anim-fade-in { animation:fadeIn .4s ease both; }
+  .anim-shake { animation:shake .4s ease; }
+  .anim-logo { animation:logoReveal .8s cubic-bezier(.16,1,.3,1) both; }
+  .anim-float { animation:float 3s ease-in-out infinite; }
+
+  /* Stagger children */
+  .stagger > * { animation:fadeUp .45s ease both; }
+  .stagger > *:nth-child(1){animation-delay:.05s}
+  .stagger > *:nth-child(2){animation-delay:.1s}
+  .stagger > *:nth-child(3){animation-delay:.15s}
+  .stagger > *:nth-child(4){animation-delay:.2s}
+  .stagger > *:nth-child(5){animation-delay:.25s}
+  .stagger > *:nth-child(6){animation-delay:.3s}
+  .stagger > *:nth-child(7){animation-delay:.35s}
+  .stagger > *:nth-child(8){animation-delay:.4s}
+
+  /* Hash fingerprint grid */
+  .fp-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:3px; }
+  .fp-cell { aspect-ratio:1; border-radius:4px; animation:cellPop .3s ease both; }
+
+  /* Hash text characters */
+  .hash-char { display:inline-block; animation:hashChar .15s ease both; }
+
+  /* Card hover */
+  .mode-card { transition:all .25s ease; border:1px solid var(--border); }
+  .mode-card:hover { border-color:var(--brand); transform:translateY(-4px); box-shadow:0 8px 32px rgba(52,211,153,.12); }
+
+  /* Buttons */
+  .btn-primary { background:var(--brand); color:#0c0a09; font-weight:700; border:none; border-radius:12px; padding:14px 28px; cursor:pointer; transition:all .2s; font-family:inherit; font-size:1rem; }
+  .btn-primary:hover { filter:brightness(1.1); transform:translateY(-1px); box-shadow:0 4px 20px var(--brand-glow); }
+  .btn-primary:active { transform:scale(.97); }
+  .btn-primary:disabled { opacity:.4; cursor:not-allowed; transform:none; filter:none; box-shadow:none; }
+  .btn-outline { background:transparent; color:var(--brand); font-weight:600; border:2px solid var(--brand); border-radius:12px; padding:12px 24px; cursor:pointer; transition:all .2s; font-family:inherit; font-size:.95rem; }
+  .btn-outline:hover { background:rgba(52,211,153,.08); }
+  .btn-ghost { background:transparent; color:var(--muted); border:none; cursor:pointer; font-family:inherit; font-size:.9rem; padding:8px; transition:color .2s; }
+  .btn-ghost:hover { color:#fafaf9; }
+
+  /* Input */
+  .answer-input { background:rgba(255,255,255,.04); border:2px solid var(--border); border-radius:12px; padding:16px 20px; color:#fafaf9; font-family:'JetBrains Mono',monospace; font-size:1.25rem; width:100%; outline:none; transition:border-color .2s; }
+  .answer-input:focus { border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-glow); }
+  .answer-input::placeholder { color:rgba(168,162,158,.5); }
+
+  /* Toast */
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:999; padding:12px 24px; border-radius:12px; font-weight:600; font-size:.9rem; animation:fadeUp .3s ease both; pointer-events:none; }
+  .toast.success { background:#065f46; color:#34d399; border:1px solid #34d399; }
+  .toast.error { background:#4c0519; color:#fb7185; border:1px solid #fb7185; }
+  .toast.info { background:#1e3a5f; color:#60a5fa; border:1px solid #60a5fa; }
+
+  /* Modal overlay */
+  .modal-overlay { position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:16px; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;max-height:85dvh;overflow-y:auto;padding:28px; }
+
+  /* Blur reveal for opponent answers */
+  .blur-reveal { filter:blur(8px); transition:filter .6s ease; user-select:none; }
+  .blur-reveal.revealed { filter:blur(0); user-select:auto; }
+
+  /* Progress bar */
+  .progress-track { height:6px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--brand); border-radius:3px; transition:width .5s ease; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation-duration:.01ms!important; transition-duration:.01ms!important; } }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<canvas id="bg-canvas"></canvas>
+
+<!-- ==================== SPLASH ==================== -->
+<div id="screen-splash" class="screen active items-center justify-center px-6">
+  <div class="text-center max-w-md mx-auto">
+    <div class="anim-logo mb-6">
+      <div class="text-6xl sm:text-7xl font-extrabold tracking-tight">
+        <span class="text-brand">JUJUR</span><span class="text-gold">in</span><span class="text-danger">!</span>
+      </div>
+    </div>
+    <p id="splash-tagline" class="text-lg sm:text-xl text-stone-400 mb-2 anim-fade-up" style="animation-delay:.3s">
+      Jujur itu nggak harus susah.
+    </p>
+    <p class="text-sm text-stone-500 mb-10 anim-fade-up" style="animation-delay:.4s">
+      Game kejujuran & logika dengan Zero-Knowledge Commitment
+    </p>
+    <div class="flex flex-col gap-3 anim-fade-up" style="animation-delay:.55s">
+      <button class="btn-primary text-lg px-10 py-4" onclick="showScreen('screen-modes')">
+        <span id="btn-start">Mulai Bermain</span>
+      </button>
+      <button class="btn-outline" onclick="openModal('modal-zk')">
+        <span id="btn-howzk">Bagaimana ZK Bekerja?</span>
+      </button>
+    </div>
+    <div class="mt-8 flex items-center justify-center gap-2 anim-fade-up" style="animation-delay:.7s">
+      <button class="btn-ghost flex items-center gap-1 text-sm" onclick="toggleLang()">
+        <i data-lucide="globe" class="w-4 h-4"></i>
+        <span id="btn-lang-splash">English</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODE SELECT ==================== -->
+<div id="screen-modes" class="screen items-start justify-start pt-8 px-4 pb-16">
+  <div class="w-full max-w-lg mx-auto">
+    <div class="flex items-center justify-between mb-8">
+      <button class="btn-ghost flex items-center gap-1" onclick="showScreen('screen-splash')">
+        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+      </button>
+      <button class="btn-ghost flex items-center gap-1 text-sm" onclick="toggleLang()">
+        <i data-lucide="globe" class="w-4 h-4"></i>
+        <span id="btn-lang-modes">EN</span>
+      </button>
+      <button class="btn-ghost" onclick="openModal('modal-zk')">
+        <i data-lucide="info" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <h1 id="mode-title" class="text-3xl font-bold mb-2">Pilih Kategori</h1>
+    <p id="mode-subtitle" class="text-stone-400 mb-8">5 ronde per kategori, 100 poin per jawaban benar</p>
+    <div class="grid grid-cols-1 gap-4 stagger" id="mode-list"></div>
+  </div>
+</div>
+
+<!-- ==================== GAME ==================== -->
+<div id="screen-game" class="screen pt-4 px-4 pb-8">
+  <div class="w-full max-w-lg mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-3">
+      <button class="btn-ghost" onclick="confirmQuit()" id="btn-back-game">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <div class="text-center">
+        <div id="game-category-label" class="text-xs font-semibold text-brand uppercase tracking-wider">Jual Beli</div>
+        <div id="game-round" class="text-sm text-stone-400">1 / 5</div>
+      </div>
+      <div class="flex items-center gap-1 text-gold font-mono font-bold text-lg">
+        <i data-lucide="trophy" class="w-4 h-4"></i>
+        <span id="game-score">0</span>
+      </div>
+    </div>
+    <div class="progress-track mb-6"><div class="progress-fill" id="game-progress" style="width:0%"></div></div>
+
+    <!-- Question Area -->
+    <div id="game-question-area" class="bg-surface border border-stone-800 rounded-2xl p-6 mb-4">
+      <div id="game-question-icon" class="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center mb-4 text-brand">
+        <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+      </div>
+      <p id="game-question-text" class="text-lg sm:text-xl font-semibold leading-relaxed mb-6"></p>
+      <div id="game-input-wrap">
+        <input type="text" inputmode="numeric" id="game-answer-input" class="answer-input" placeholder="..." autocomplete="off">
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div id="game-actions" class="mb-4">
+      <button id="btn-commit" class="btn-primary w-full flex items-center justify-center gap-2" onclick="commitAnswer()">
+        <i data-lucide="lock" class="w-5 h-5"></i>
+        <span id="btn-commit-text">Kunci Jawaban</span>
+      </button>
+    </div>
+
+    <!-- ZK Commitment Display -->
+    <div id="zk-area" class="hidden">
+      <div class="bg-surface border border-stone-800 rounded-2xl p-5 mb-4">
+        <div class="flex items-center gap-2 mb-3">
+          <i data-lucide="shield-check" class="w-5 h-5 text-brand"></i>
+          <span id="zk-label" class="text-sm font-semibold text-brand uppercase tracking-wider">ZK Commitment</span>
+        </div>
+        <!-- Fingerprint grid -->
+        <div id="zk-fingerprint" class="fp-grid mb-3"></div>
+        <!-- Hash text -->
+        <div id="zk-hash" class="font-mono text-xs text-stone-500 break-all leading-relaxed"></div>
+      </div>
+
+      <!-- Opponents -->
+      <div id="zk-opponents" class="bg-surface border border-stone-800 rounded-2xl p-5 mb-4">
+        <div class="text-sm font-semibold text-stone-400 mb-3" id="zk-others-label">Pemain lain juga terkunci</div>
+        <div id="zk-opponent-list" class="space-y-3"></div>
+      </div>
+
+      <!-- Reveal button -->
+      <button id="btn-reveal" class="btn-primary w-full flex items-center justify-center gap-2 mt-2" onclick="revealAnswers()">
+        <i data-lucide="unlock" class="w-5 h-5"></i>
+        <span id="btn-reveal-text">Buka Semua Jawaban</span>
+      </button>
+    </div>
+
+    <!-- Reveal Results -->
+    <div id="reveal-area" class="hidden">
+      <div class="bg-surface border border-stone-800 rounded-2xl p-5 mb-4" id="reveal-verification">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="bg-surface border border-stone-800 rounded-2xl p-5 mb-4" id="reveal-comparison">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="bg-surface border rounded-2xl p-5 mb-4" id="reveal-correct-box">
+        <!-- Filled dynamically -->
+      </div>
+      <button id="btn-next" class="btn-primary w-full" onclick="nextQuestion()">
+        <span id="btn-next-text">Selanjutnya</span>
+        <i data-lucide="arrow-right" class="w-5 h-5 inline ml-1"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== RESULTS ==================== -->
+<div id="screen-results" class="screen items-center justify-center px-4 py-8">
+  <div class="w-full max-w-lg mx-auto text-center">
+    <div class="anim-logo mb-4">
+      <div id="results-emoji" class="text-5xl mb-2"></div>
+    </div>
+    <h1 id="results-title" class="text-3xl font-bold mb-2 anim-fade-up" style="animation-delay:.15s">Hasil Permainan</h1>
+    <p id="results-category" class="text-brand font-semibold mb-6 anim-fade-up" style="animation-delay:.2s">Jual Beli</p>
+    <div class="bg-surface border border-stone-800 rounded-2xl p-6 mb-6 anim-fade-up" style="animation-delay:.3s">
+      <div class="text-5xl font-extrabold text-gold mb-1" id="results-score">0</div>
+      <div class="text-stone-400" id="results-score-label">dari 500 poin</div>
+    </div>
+    <div id="results-breakdown" class="bg-surface border border-stone-800 rounded-2xl p-5 mb-6 text-left anim-fade-up" style="animation-delay:.4s"></div>
+    <div id="results-zk-summary" class="bg-surface border border-stone-800 rounded-2xl p-5 mb-8 text-left anim-fade-up" style="animation-delay:.5s"></div>
+    <div class="flex gap-3 anim-fade-up" style="animation-delay:.6s">
+      <button class="btn-outline flex-1" onclick="showScreen('screen-modes')">
+        <span id="btn-back-modes">Kembali</span>
+      </button>
+      <button class="btn-primary flex-1" onclick="replayCategory()">
+        <span id="btn-replay">Main Lagi</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== QUIT CONFIRM ==================== -->
+<div id="modal-quit" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-quit')">
+  <div class="modal-box text-center">
+    <i data-lucide="alert-triangle" class="w-10 h-10 text-gold mx-auto mb-3"></i>
+    <h2 id="quit-title" class="text-xl font-bold mb-2">Keluar dari permainan?</h2>
+    <p id="quit-desc" class="text-stone-400 text-sm mb-6">Progres kamu akan hilang.</p>
+    <div class="flex gap-3">
+      <button class="btn-outline flex-1" onclick="closeModal('modal-quit')"><span id="quit-cancel">Batal</span></button>
+      <button class="btn-primary flex-1" style="background:var(--danger)" onclick="quitGame()"><span id="quit-confirm">Keluar</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ZK EDUCATION ==================== -->
+<div id="modal-zk" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-zk')">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-5">
+      <h2 id="zk-edu-title" class="text-xl font-bold">Bagaimana ZK Bekerja di JUJURin!</h2>
+      <button class="btn-ghost" onclick="closeModal('modal-zk')"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div class="space-y-5 text-sm leading-relaxed text-stone-300">
+      <div class="flex gap-3">
+        <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0 text-brand font-bold">1</div>
+        <div>
+          <p class="font-semibold text-stone-100 mb-1" id="zk-step1-title">Komitmen (Commit)</p>
+          <p id="zk-step1-desc">Jawaban kamu di-hash bersama angka acak (nonce). Hash ini seperti amplop tertutup — isinya tidak bisa dibaca, tapi tidak bisa diubah.</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0 text-brand font-bold">2</div>
+        <div>
+          <p class="font-semibold text-stone-100 mb-1" id="zk-step2-title">Semua Terkunci</p>
+          <p id="zk-step2-desc">Semua pemain mengunci jawaban mereka. Tidak ada yang bisa melihat jawaban siapa pun — termasuk server.</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0 text-brand font-bold">3</div>
+        <div>
+          <p class="font-semibold text-stone-100 mb-1" id="zk-step3-title">Pembukaan (Reveal)</p>
+          <p id="zk-step3-desc">Setelah semua terkunci, jawaban dan nonce dibuka. Sistem memverifikasi: hash(jawaban + nonce) sama dengan komitmen awal?</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center flex-shrink-0 text-gold font-bold">!</div>
+        <div>
+          <p class="font-semibold text-stone-100 mb-1" id="zk-step4-title">Deteksi Kecurangan</p>
+          <p id="zk-step4-desc">Jika hash tidak cocok, pemain itu berusaha mengubah jawaban setelah melihat jawaban orang lain — ketahuan berbohong!</p>
+        </div>
+      </div>
+      <div class="bg-base rounded-xl p-4 border border-stone-800">
+        <p class="font-mono text-xs text-stone-500 mb-1">SHA-256( "60000" + "a7f3...") =</p>
+        <p class="font-mono text-xs text-brand break-all">e3b0c44298fc1c149afbf4c8996fb924...27ae41e4649b934ca495991b7852b855</p>
+        <p id="zk-hash-note" class="text-xs text-stone-500 mt-2">Setiap jawaban menghasilkan sidik jari hash yang unik</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+/* ========================================
+   KONFIGURASI & KONSTANTA
+   ======================================== */
+const ROUNDS_PER_GAME = 5;
+const POINTS_PER_CORRECT = 100;
+const OPPONENTS = [
+  { name:'Budi', accuracy:.9, cheatChance:.05, color:'#60a5fa' },
+  { name:'Siti', accuracy:.6, cheatChance:.12, color:'#c084fc' },
+  { name:'Andi', accuracy:.45, cheatChance:.25, color:'#fb923c' }
+];
+
+const CATEGORIES = {
+  'jual-beli': { icon:'shopping-cart', color:'#34d399', key:'cat_jb' },
+  'kembalian': { icon:'calculator', color:'#fbbf24', key:'cat_km' },
+  'bagi-duit': { icon:'split', color:'#60a5fa', key:'cat_bd' },
+  'arisan':    { icon:'users', color:'#c084fc', key:'cat_ar' },
+  'logika':    { icon:'brain', color:'#fb923c', key:'cat_lg' }
+};
+
+/* ========================================
+   BAHASA (i18n)
+   ======================================== */
+const L = {
+  id: {
+    splashTagline: 'Jujur itu nggak harus susah.',
+    splashSub: 'Game kejujuran & logika dengan Zero-Knowledge Commitment',
+    btnStart: 'Mulai Bermain',
+    btnHowZK: 'Bagaimana ZK Bekerja?',
+    langSwitch: 'English',
+    modeTitle: 'Pilih Kategori',
+    modeSub: '5 ronde per kategori, 100 poin per jawaban benar',
+    cat_jb: 'Jual Beli', cat_km: 'Hitung Kembalian', cat_bd: 'Bagi Duit', cat_ar: 'Arisan', cat_lg: 'Logika',
+    cat_jb_d: 'Hitung total harga, diskon, dan pembelian', cat_km_d: 'Hitung kembalian yang benar',
+    cat_bd_d: 'Bagi tagihan dan uang secara adil', cat_ar_d: 'Hitung arisan dan undian beruntung', cat_lg_d: 'Tebak pola dan deduksi sederhana',
+    roundLabel: (c,t) => `${c} / ${t}`,
+    lockAnswer: 'Kunci Jawaban', unlockAll: 'Buka Semua Jawaban',
+    zkCommit: 'ZK Commitment', zkOthers: 'Pemain lain juga terkunci',
+    zkVerified: 'Hash Terverifikasi', zkFailed: 'Hash Tidak Cocok — Curang!',
+    yourAnswer: 'Jawabanmu', correctAnswer: 'Jawaban Benar',
+    points: (p) => `+${p} poin`, wrong: 'Salah', correct: 'Benar',
+    nextBtn: 'Selanjutnya', finishBtn: 'Lihat Hasil',
+    resultsTitle: 'Hasil Permainan', resultsOf: (s) => `dari ${s} poin`,
+    replay: 'Main Lagi', back: 'Kembali',
+    quitTitle: 'Keluar dari permainan?', quitDesc: 'Progres kamu akan hilang.',
+    quitCancel: 'Batal', quitConfirm: 'Keluar',
+    honestPlayers: (n) => `${n} pemain jujur`, cheatingCaught: (n) => `${n} tertangkap curang`,
+    inputPlaceholder: 'Ketik jawaban angka...',
+    emptyAnswer: 'Jawaban tidak boleh kosong!',
+    zkEduTitle: 'Bagaimana ZK Bekerja di JUJURin!',
+    zkS1T:'Komitmen (Commit)', zkS1D:'Jawaban kamu di-hash bersama angka acak (nonce). Hash ini seperti amplop tertutup — isinya tidak bisa dibaca, tapi tidak bisa diubah.',
+    zkS2T:'Semua Terkunci', zkS2D:'Semua pemain mengunci jawaban mereka. Tidak ada yang bisa melihat jawaban siapa pun — termasuk server.',
+    zkS3T:'Pembukaan (Reveal)', zkS3D:'Setelah semua terkunci, jawaban dan nonce dibuka. Sistem memverifikasi: hash(jawaban + nonce) sama dengan komitmen awal?',
+    zkS4T:'Deteksi Kecurangan', zkS4D:'Jika hash tidak cocok, pemain itu berusaha mengubah jawaban setelah melihat jawaban orang lain — ketahuan berbohong!',
+    zkHashNote:'Setiap jawaban menghasilkan sidik jari hash yang unik',
+    resultGreat:'Luar Biasa!', resultGood:'Bagus!', resultOk:'Cukup', resultBad:'Ayo Coba Lagi!'
+  },
+  en: {
+    splashTagline: 'Honesty doesn\'t have to be hard.',
+    splashSub: 'Honesty & logic game with Zero-Knowledge Commitment',
+    btnStart: 'Start Playing', btnHowZK: 'How Does ZK Work?', langSwitch: 'Indonesia',
+    modeTitle: 'Choose Category', modeSub: '5 rounds per category, 100 points per correct answer',
+    cat_jb:'Buying & Selling', cat_km:'Calculate Change', cat_bd:'Split Money', cat_ar:'Rotating Savings', cat_lg:'Logic',
+    cat_jb_d:'Calculate totals, discounts, and purchases', cat_km_d:'Calculate the correct change',
+    cat_bd_d:'Split bills and money fairly', cat_ar_d:'Calculate arisan and lucky draws', cat_lg_d:'Guess patterns and simple deduction',
+    roundLabel:(c,t)=>`${c} / ${t}`, lockAnswer:'Lock Answer', unlockAll:'Reveal All Answers',
+    zkCommit:'ZK Commitment', zkOthers:'Other players are also locked in',
+    zkVerified:'Hash Verified', zkFailed:'Hash Mismatch — Cheating!',
+    yourAnswer:'Your Answer', correctAnswer:'Correct Answer',
+    points:(p)=>`+${p} points`, wrong:'Wrong', correct:'Correct',
+    nextBtn:'Next', finishBtn:'See Results',
+    resultsTitle:'Game Results', resultsOf:(s)=>`of ${s} points`,
+    replay:'Play Again', back:'Back',
+    quitTitle:'Quit the game?', quitDesc:'Your progress will be lost.',
+    quitCancel:'Cancel', quitConfirm:'Quit',
+    honestPlayers:(n)=>`${n} honest players`, cheatingCaught:(n)=>`${n} caught cheating`,
+    inputPlaceholder:'Type a number...',
+    emptyAnswer:'Answer cannot be empty!',
+    zkEduTitle:'How ZK Works in JUJURin!',
+    zkS1T:'Commit', zkS1D:'Your answer is hashed with a random number (nonce). This hash is like a sealed envelope — the content can\'t be read, but can\'t be changed either.',
+    zkS2T:'Everyone Locked In', zkS2D:'All players lock their answers. No one can see anyone\'s answer — including the server.',
+    zkS3T:'Reveal', zkS3D:'After everyone is locked, answers and nonces are opened. The system verifies: does hash(answer + nonce) match the original commitment?',
+    zkS4T:'Cheat Detection', zkS4D:'If the hash doesn\'t match, that player tried to change their answer after seeing others — caught lying!',
+    zkHashNote:'Each answer produces a unique hash fingerprint',
+    resultGreat:'Amazing!', resultGood:'Great!', resultOk:'Not Bad', resultBad:'Try Again!'
+  }
+};
+
+/* ========================================
+   STATE
+   ======================================== */
+let lang = 'id';
+let state = {
+  screen: 'screen-splash',
+  category: null,
+  round: 0,
+  score: 0,
+  questions: [],
+  currentQ: null,
+  playerCommitment: null, // { hash, nonce, answer }
+  opponentCommitments: [], // [{ name, hash, nonce, answer, verified, cheating }]
+  results: [], // [{ correct, playerAnswer, correctAnswer, opponents:[...] }]
+  zkHonestCount: 0,
+  zkCheatCount: 0
+};
+
+/* ========================================
+   UTILITAS
+   ======================================== */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+const t = (key, ...args) => { let v = L[lang][key]; if(typeof v==='function') v=v(...args); return v; };
+const randInt = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const pick = (arr) => arr[randInt(0,arr.length-1)];
+const fmtRp = (n) => 'Rp ' + n.toLocaleString('id-ID');
+const fmtNum = (n) => n.toLocaleString('id-ID');
+
+/* ========================================
+   AUDIO (Web Audio API - sederhana)
+   ======================================== */
+let audioCtx;
+function getAudioCtx() { if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function playTone(freq, dur, type='sine', vol=.15) {
+  try {
+    const ctx=getAudioCtx(), o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=vol;
+    g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime+dur);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+dur);
+  } catch(e){}
+}
+function sfxCommit() { playTone(220,.3,'triangle'); setTimeout(()=>playTone(330,.2,'triangle'),100); }
+function sfxReveal() { playTone(440,.15,'sine'); setTimeout(()=>playTone(554,.15,'sine'),80); setTimeout(()=>playTone(660,.2,'sine'),160); }
+function sfxCorrect() { playTone(523,.12,'sine'); setTimeout(()=>playTone(659,.12,'sine'),100); setTimeout(()=>playTone(784,.25,'sine'),200); }
+function sfxWrong() { playTone(200,.3,'sawtooth',.08); }
+function sfxClick() { playTone(800,.05,'sine',.06); }
+
+/* ========================================
+   HASH & ZK (SHA-256 via SubtleCrypto)
+   ======================================== */
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function generateNonce() {
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* Visualisasi fingerprint dari hash */
+function hashToFingerprint(hash) {
+  const cells = [];
+  for(let i=0; i<16; i++) {
+    const byte = parseInt(hash.substring(i*2, i*2+2), 16);
+    const hue = (byte / 255) * 300 + 120; // range hijau-ungu
+    const light = 35 + (byte / 255) * 25;
+    cells.push(`hsl(${hue},70%,${light}%)`);
+  }
+  return cells;
+}
+function renderFingerprint(containerId, hash) {
+  const el = document.getElementById(containerId);
+  const colors = hashToFingerprint(hash);
+  el.innerHTML = colors.map((c,i) =>
+    `<div class="fp-cell" style="background:${c};animation-delay:${i*30}ms"></div>`
+  ).join('');
+}
+function renderHashText(containerId, hash) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = hash.split('').map((ch,i) =>
+    `<span class="hash-char" style="animation-delay:${i*15}ms">${ch}</span>`
+  ).join('');
+}
+
+/* ========================================
+   GENERATOR PERTANYAAN
+   ======================================== */
+function generateQuestions(category) {
+  const qs = [];
+  for(let i=0; i<ROUNDS_PER_GAME; i++) qs.push(genOne(category));
+  return qs;
+}
+
+function genOne(cat) {
+  switch(cat) {
+    case 'jual-beli': return genJualBeli();
+    case 'kembalian': return genKembalian();
+    case 'bagi-duit': return genBagiDuit();
+    case 'arisan':    return genArisan();
+    case 'logika':    return genLogika();
+  }
+}
+
+function genJualBeli() {
+  const type = randInt(0,3);
+  if(type===0) {
+    const items = lang==='id'
+      ? [{n:'buku',p:randInt(5,50)*1000},{n:'pensil',p:randInt(2,10)*1000},{n:'penghapus',p:randInt(1,5)*1000},{n:'krayon',p:randInt(8,25)*1000},{n:'buku tulis',p:randInt(3,15)*1000}]
+      : [{n:'book',p:randInt(5,50)*1000},{n:'pencil',p:randInt(2,10)*1000},{n:'eraser',p:randInt(1,5)*1000},{n:'crayon',p:randInt(8,25)*1000},{n:'notebook',p:randInt(3,15)*1000}];
+    const item=pick(items), qty=randInt(2,12), ans=item.p*qty;
+    return { question: lang==='id'? `Harga 1 ${item.n} adalah ${fmtRp(item.p)}. Berapa total untuk ${qty} ${item.n}?` : `Price of 1 ${item.n} is ${fmtRp(item.p)}. What is the total for ${qty} ${item.n}s?`, answer:ans, unit:'Rp', explanation:`${qty} × ${fmtRp(item.p)} = ${fmtRp(ans)}` };
+  } else if(type===1) {
+    const price=randInt(4,80)*10000, disc=pick([10,15,20,25,30,40,50]);
+    const savings=Math.round(price*disc/100), ans=price-savings;
+    return { question: lang==='id'? `Harga ${fmtRp(price)} dapat diskon ${disc}%. Berapa harga setelah diskon?` : `Price ${fmtRp(price)} with ${disc}% discount. What is the final price?`, answer:ans, unit:'Rp', explanation:`${fmtRp(price)} - ${disc}% = ${fmtRp(price)} - ${fmtRp(savings)} = ${fmtRp(ans)}` };
+  } else if(type===2) {
+    const items = lang==='id'
+      ? [{n:'beras',p:randInt(5,15)*1000},{n:'minyak',p:randInt(10,25)*1000},{n:'gula',p:randInt(8,18)*1000},{n:'telur',p:randInt(15,30)*1000}]
+      : [{n:'rice',p:randInt(5,15)*1000},{n:'oil',p:randInt(10,25)*1000},{n:'sugar',p:randInt(8,18)*1000},{n:'eggs',p:randInt(15,30)*1000}];
+    const picked=pick(items,2)||[items[0],items[1]], q1=randInt(2,5), q2=randInt(1,4);
+    // Acak 2 item berbeda
+    const i1=items[randInt(0,items.length-1)], i2=items.filter(x=>x.n!==i1.n)[0]||items[(items.indexOf(i1)+1)%items.length];
+    const a1=i1.p*q1, a2=i2.p*q2, ans=a1+a2;
+    return { question: lang==='id'? `Beli ${q1} ${i1.n} (@${fmtRp(i1.p)}) dan ${q2} ${i2.n} (@${fmtRp(i2.p)}). Total?` : `Buy ${q1} ${i1.n} (@${fmtRp(i1.p)}) and ${q2} ${i2.n} (@${fmtRp(i2.p)}). Total?`, answer:ans, unit:'Rp', explanation:`${q1}×${fmtRp(i1.p)} + ${q2}×${fmtRp(i2.p)} = ${fmtRp(a1)} + ${fmtRp(a2)} = ${fmtRp(ans)}` };
+  } else {
+    const price=randInt(3,20)*10000, perUnit=Math.round(price/randInt(2,8));
+    const qty=price/perUnit;
+    return { question: lang==='id'? `Total harga ${fmtRp(price)} untuk beberapa item. Harga per item Rp ${fmtRp(perUnit)}. Berapa jumlah item?` : `Total ${fmtRp(price)} for some items. Price per item is ${fmtRp(perUnit)}. How many items?`, answer:qty, unit:'', explanation:`${fmtRp(price)} ÷ ${fmtRp(perUnit)} = ${qty}` };
+  }
+}
+
+function genKembalian() {
+  const type = randInt(0,2);
+  if(type===0) {
+    const price=randInt(5,95)*1000, pay=pick([10000,20000,50000,100000,200000].filter(x=>x>price));
+    const ans=pay-price;
+    return { question: lang==='id'? `Harga barang ${fmtRp(price)}. Kamu bayar ${fmtRp(pay)}. Berapa kembalian?` : `Item costs ${fmtRp(price)}. You pay ${fmtRp(pay)}. What is the change?`, answer:ans, unit:'Rp', explanation:`${fmtRp(pay)} - ${fmtRp(price)} = ${fmtRp(ans)}` };
+  } else if(type===1) {
+    const items=[];
+    const names = lang==='id'?['nasi','teh','es','kerupuk','ayam']:['rice','tea','ice','cracker','chicken'];
+    const prices=[randInt(8,20)*1000,randInt(3,8)*1000,randInt(2,5)*1000,randInt(2,5)*1000,randInt(12,25)*1000];
+    let total=0;
+    const count=randInt(2,4);
+    const desc=[];
+    for(let i=0;i<count;i++) { total+=prices[i]; desc.push(`${names[i]} ${fmtRp(prices[i])}`); }
+    const pay=pick([20000,50000,100000].filter(x=>x>total));
+    const ans=pay-total;
+    return { question: lang==='id'? `Makan: ${desc.join(', ')}. Total ${fmtRp(total)}. Bayar ${fmtRp(pay)}. Kembalian?` : `Food: ${desc.join(', ')}. Total ${fmtRp(total)}. Pay ${fmtRp(pay)}. Change?`, answer:ans, unit:'Rp', explanation:`${fmtRp(pay)} - ${fmtRp(total)} = ${fmtRp(ans)}` };
+  } else {
+    const price=randInt(10,90)*1000;
+    const correctChange = randInt(1,20)*1000;
+    const pay = price + correctChange;
+    // Tanya: berapa harga barangnya?
+    return { question: lang==='id'? `Kamu bayar ${fmtRp(pay)}, dapat kembalian ${fmtRp(correctChange)}. Berapa harga barang?` : `You pay ${fmtRp(pay)}, get change ${fmtRp(correctChange)}. What is the item price?`, answer:price, unit:'Rp', explanation:`${fmtRp(pay)} - ${fmtRp(correctChange)} = ${fmtRp(price)}` };
+  }
+}
+
+function genBagiDuit() {
+  const type = randInt(0,2);
+  if(type===0) {
+    const total=randInt(3,30)*10000, people=randInt(2,6);
+    const ans=Math.round(total/people);
+    const sisa=total-ans*people;
+    return { question: lang==='id'? `Tagihan ${fmtRp(total)} dibagi rata untuk ${people} orang. Berapa per orang?` : `Bill of ${fmtRp(total)} split equally among ${people} people. How much per person?`, answer:ans, unit:'Rp', explanation:`${fmtRp(total)} ÷ ${people} = ${fmtRp(ans)}${sisa>0?(lang==='id'?` (sisa ${fmtRp(sisa)})`:` (remainder ${fmtRp(sisa)})`):''}` };
+  } else if(type===1) {
+    const total=randInt(5,50)*10000, r1=randInt(1,4), r2=randInt(1,4);
+    if(r1===r2) { return genBagiDuit(); } // cegah pembagian sama
+    const sum=r1+r2;
+    const a1=Math.round(total*r1/sum), a2=total-a1;
+    return { question: lang==='id'? `${fmtRp(total)} dibagi dengan rasio ${r1}:${r2}. Berapa bagian yang lebih besar?` : `${fmtRp(total)} divided in ratio ${r1}:${r2}. What is the larger share?`, answer:Math.max(a1,a2), unit:'Rp', explanation:`Bagian besar = ${fmtRp(total)} × ${Math.max(r1,r2)}/${sum} = ${fmtRp(Math.max(a1,a2))}` };
+  } else {
+    const food=randInt(4,25)*10000, tip=pick([5,10,15]), people=randInt(2,5);
+    const tipAmt=Math.round(food*tip/100), total=food+tipAmt;
+    const ans=Math.round(total/people);
+    return { question: lang==='id'? `Makan ${fmtRp(food)} + tip ${tip}% = ${fmtRp(total)}. Dibagi ${people} orang. Berapa per orang?` : `Food ${fmtRp(food)} + ${tip}% tip = ${fmtRp(total)}. Split ${people} ways. How much per person?`, answer:ans, unit:'Rp', explanation:`${fmtRp(total)} ÷ ${people} = ${fmtRp(ans)}` };
+  }
+}
+
+function genArisan() {
+  const type = randInt(0,2);
+  if(type===0) {
+    const people=randInt(5,15), iuran=randInt(20,200)*1000;
+    const ans=people*iuran;
+    return { question: lang==='id'? `Arisan ${people} orang, iuran ${fmtRp(iuran)}/bulan. Berapa total yang didapat pemenang?` : `Arisan with ${people} members, contribution ${fmtRp(iuran)}/month. What is the total prize?`, answer:ans, unit:'Rp', explanation:`${people} × ${fmtRp(iuran)} = ${fmtRp(ans)}` };
+  } else if(type===1) {
+    const people=randInt(5,12), iuran=randInt(25,100)*1000, month=randInt(1,people);
+    // Pemenang bulan ke-month sudah bayar (month-1) kali, terima 1 kali
+    const sudahBayar=(month-1)*iuran, terima=people*iuran, profit=terima-sudahBayar;
+    return { question: lang==='id'? `Arisan ${people} orang, iuran ${fmtRp(iuran)}. Kamu menang bulan ke-${month}. Sudah bayar ${(month-1)}× lalu terima hadiah. Berapa untung kamu?` : `Arisan ${people} members, ${fmtRp(iuran)} each. You win in month ${month}. Already paid ${(month-1)}× then receive prize. What is your profit?`, answer:profit, unit:'Rp', explanation:`Terima ${fmtRp(terima)} - sudah bayar ${fmtRp(sudahBayar)} = ${fmtRp(profit)}` };
+  } else {
+    const people=randInt(6,12), iuran=randInt(30,150)*1000;
+    // Kalau ikut 3 bulan lalu berhenti, total keluar vs kalau lanjut dan menang bulan ke-8
+    const ikut=3, keluar=ikut*iuran;
+    const menangBulan=8;
+    if(menangBulan>people) return genArisan();
+    const terima=people*iuran, bayarTotal=(menangBulan-1)*iuran, untung=terima-bayarTotal;
+    return { question: lang==='id'? `Arisan ${people} orang, iuran ${fmtRp(iuran)}. Kamu menang bulan ke-${menangBulan}. Berapa untung bersih kamu?` : `Arisan ${people} members, ${fmtRp(iuran)} each. You win month ${menangBulan}. What is your net profit?`, answer:untung, unit:'Rp', explanation:`Terima ${fmtRp(terima)} - bayar ${fmtRp(bayarTotal)} = ${fmtRp(untung)}` };
+  }
+}
+
+function genLogika() {
+  const type = randInt(0,3);
+  if(type===0) { // Pola angka
+    const start=randInt(1,10), diff=randInt(2,8);
+    const seq=[]; for(let i=0;i<5;i++) seq.push(start+diff*i);
+    const ans=seq[4]+diff;
+    return { question: lang==='id'? `Lanjutkan pola: ${seq.join(', ')}, ...?` : `Continue the pattern: ${seq.join(', ')}, ...?`, answer:ans, unit:'', explanation:`Pola: +${diff} setiap langkah. ${seq[4]} + ${diff} = ${ans}` };
+  } else if(type===1) { // Pola kuadrat sederhana
+    const base=randInt(1,5);
+    const seq=[base*base, (base+1)*(base+1), (base+2)*(base+2), (base+3)*(base+3)];
+    const next=(base+4)*(base+4);
+    return { question: lang==='id'? `Lanjutkan pola: ${seq.join(', ')}, ...?` : `Continue the pattern: ${seq.join(', ')}, ...?`, answer:next, unit:'', explanation:`Pola: kuadrat sempurna. ${base+4}² = ${next}` };
+  } else if(type===2) { // Logika if-then
+    const scenarios = lang==='id' ? [
+      ()=>{ const a=randInt(10,50)*1000, b=a+randInt(1,5)*1000; return { q:`Jika harga A kurang dari harga B, dan A = ${fmtRp(a)}, B = ${fmtRp(b)}. Apakah A lebih murah? Jawab 1=Ya, 0=Tidak`, a:1, e:`${fmtRp(a)} < ${fmtRp(b)} → Ya` }; },
+      ()=>{ const a=randInt(50,100)*1000, b=randInt(10,40)*1000; return { q:`Jika harga A kurang dari harga B, dan A = ${fmtRp(a)}, B = ${fmtRp(b)}. Apakah A lebih murah? Jawab 1=Ya, 0=Tidak`, a:0, e:`${fmtRp(a)} > ${fmtRp(b)} → Tidak` }; },
+      ()=>{ const x=randInt(3,9), y=x*2; return { q:`Jika Y selalu 2× X, dan X = ${x}. Berapa Y?`, a:y, e:`Y = 2 × ${x} = ${y}` }; }
+    ] : [
+      ()=>{ const a=randInt(10,50)*1000, b=a+randInt(1,5)*1000; return { q:`If price A is less than price B, and A = ${fmtRp(a)}, B = ${fmtRp(b)}. Is A cheaper? Answer 1=Yes, 0=No`, a:1, e:`${fmtRp(a)} < ${fmtRp(b)} → Yes` }; },
+      ()=>{ const a=randInt(50,100)*1000, b=randInt(10,40)*1000; return { q:`If price A is less than price B, and A = ${fmtRp(a)}, B = ${fmtRp(b)}. Is A cheaper? Answer 1=Yes, 0=No`, a:0, e:`${fmtRp(a)} > ${fmtRp(b)} → No` }; },
+      ()=>{ const x=randInt(3,9), y=x*2; return { q:`If Y is always 2× X, and X = ${x}. What is Y?`, a:y, e:`Y = 2 × ${x} = ${y}` }; }
+    ];
+    const s=pick(scenarios)();
+    return { question:s.q, answer:s.a, unit:'', explanation:s.e };
+  } else { // Deret geometri
+    const start=randInt(1,4), ratio=pick([2,3]);
+    const seq=[start]; for(let i=1;i<4;i++) seq.push(seq[i-1]*ratio);
+    const ans=seq[3]*ratio;
+    return { question: lang==='id'? `Lanjutkan pola: ${seq.join(', ')}, ...?` : `Continue the pattern: ${seq.join(', ')}, ...?`, answer:ans, unit:'', explanation:`Pola: ×${ratio} setiap langkah. ${seq[3]} × ${ratio} = ${ans}` };
+  }
+}
+
+/* ========================================
+   AI OPPONENTS
+   ======================================== */
+function generateOpponentAnswers(correctAnswer) {
+  return OPPONENTS.map(opp => {
+    const isCorrect = Math.random() < opp.accuracy;
+    const isCheating = Math.random() < opp.cheatChance;
+    let answer, fakeAnswer, verified;
+
+    if(isCheating) {
+      // Mereka berkomitmen satu jawaban, lalu mencoba membuka jawaban lain
+      answer = isCorrect ? correctAnswer : wrongAnswer(correctAnswer);
+      fakeAnswer = wrongAnswer(correctAnswer); // jawaban berbeda saat reveal
+      verified = false;
+    } else {
+      answer = isCorrect ? correctAnswer : wrongAnswer(correctAnswer);
+      fakeAnswer = null;
+      verified = true;
+    }
+
+    return { name:opp.name, color:opp.color, answer, fakeAnswer, verified, cheating:isCheating };
+  });
+}
+
+function wrongAnswer(correct) {
+  // Buat jawaban salah yang masuk akal
+  const magnitude = Math.max(1, Math.abs(correct));
+  const offset = Math.round(magnitude * (0.1 + Math.random() * 0.4)) * (Math.random()>.5?1:-1);
+  const wrong = correct + offset;
+  return wrong === correct ? correct + Math.max(1000, Math.round(magnitude*0.15)) : wrong;
+}
+
+/* ========================================
+   NAVIGASI LAYAR
+   ======================================== */
+function showScreen(id) {
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  state.screen = id;
+  sfxClick();
+  if(id==='screen-modes') renderModes();
+  lucide.createIcons();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); sfxClick(); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ========================================
+   TOGGLE BAHASA
+   ======================================== */
+function toggleLang() {
+  lang = lang==='id'?'en':'id';
+  applyLang();
+  sfxClick();
+}
+
+function applyLang() {
+  // Splash
+  $('#splash-tagline').textContent = t('splashTagline');
+  document.querySelector('#screen-splash p:nth-child(3)').textContent = t('splashSub');
+  $('#btn-start').textContent = t('btnStart');
+  $('#btn-howzk').textContent = t('btnHowZK');
+  $('#btn-lang-splash').textContent = t('langSwitch');
+  // Modes
+  $('#mode-title').textContent = t('modeTitle');
+  $('#mode-subtitle').textContent = t('modeSub');
+  $('#btn-lang-modes').textContent = lang==='id'?'EN':'ID';
+  // Game
+  $('#btn-commit-text').textContent = t('lockAnswer');
+  $('#btn-reveal-text').textContent = t('unlockAll');
+  $('#zk-label').textContent = t('zkCommit');
+  $('#zk-others-label').textContent = t('zkOthers');
+  // Quit modal
+  $('#quit-title').textContent = t('quitTitle');
+  $('#quit-desc').textContent = t('quitDesc');
+  $('#quit-cancel').textContent = t('quitCancel');
+  $('#quit-confirm').textContent = t('quitConfirm');
+  // ZK edu modal
+  $('#zk-edu-title').textContent = t('zkEduTitle');
+  $('#zk-step1-title').textContent = t('zkS1T');
+  $('#zk-step1-desc').textContent = t('zkS1D');
+  $('#zk-step2-title').textContent = t('zkS2T');
+  $('#zk-step2-desc').textContent = t('zkS2D');
+  $('#zk-step3-title').textContent = t('zkS3T');
+  $('#zk-step3-desc').textContent = t('zkS3D');
+  $('#zk-step4-title').textContent = t('zkS4T');
+  $('#zk-step4-desc').textContent = t('zkS4D');
+  $('#zk-hash-note').textContent = t('zkHashNote');
+  // Results
+  $('#results-title').textContent = t('resultsTitle');
+  $('#btn-back-modes').textContent = t('back');
+  $('#btn-replay').textContent = t('replay');
+  // Input placeholder
+  const inp = $('#game-answer-input');
+  if(inp) inp.placeholder = t('inputPlaceholder');
+  // Re-render mode cards if visible
+  if(state.screen==='screen-modes') renderModes();
+}
+
+/* ========================================
+   RENDER MODE CARDS
+   ======================================== */
+function renderModes() {
+  const list = $('#mode-list');
+  list.innerHTML = '';
+  Object.entries(CATEGORIES).forEach(([key, cat]) => {
+    const card = document.createElement('button');
+    card.className = 'mode-card bg-surface rounded-2xl p-5 text-left w-full';
+    card.onclick = () => startGame(key);
+    card.innerHTML = `
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${cat.color}15;color:${cat.color}">
+          <i data-lucide="${cat.icon}" class="w-6 h-6"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-lg">${t(cat.key)}</div>
+          <div class="text-sm text-stone-400 mt-1">${t(cat.key+'_d')}</div>
+        </div>
+        <i data-lucide="chevron-right" class="w-5 h-5 text-stone-600 mt-1 flex-shrink-0"></i>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+  lucide.createIcons();
+}
+
+/* ========================================
+   GAME FLOW
+   ======================================== */
+function startGame(category) {
+  state.category = category;
+  state.round = 0;
+  state.score = 0;
+  state.results = [];
+  state.zkHonestCount = 0;
+  state.zkCheatCount = 0;
+  state.questions = generateQuestions(category);
+  sfxClick();
+  showScreen('screen-game');
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const q = state.questions[state.round];
+  state.currentQ = q;
+  state.playerCommitment = null;
+  state.opponentCommitments = [];
+
+  // Update header
+  const catInfo = CATEGORIES[state.category];
+  $('#game-category-label').textContent = t(catInfo.key);
+  $('#game-round').textContent = t('roundLabel', state.round+1, ROUNDS_PER_GAME);
+  $('#game-score').textContent = state.score;
+  $('#game-progress').style.width = ((state.round)/ROUNDS_PER_GAME*100)+'%';
+
+  // Update question icon
+  const iconWrap = $('#game-question-icon');
+  iconWrap.style.background = catInfo.color+'15';
+  iconWrap.style.color = catInfo.color;
+  iconWrap.innerHTML = `<i data-lucide="${catInfo.icon}" class="w-6 h-6"></i>`;
+
+  // Question text
+  $('#game-question-text').textContent = q.question;
+
+  // Reset UI states
+  $('#game-input-wrap').classList.remove('hidden');
+  $('#game-answer-input').value = '';
+  $('#game-answer-input').placeholder = t('inputPlaceholder');
+  $('#game-answer-input').disabled = false;
+  $('#game-answer-input').focus();
+
+  $('#game-actions').classList.remove('hidden');
+  $('#btn-commit').disabled = false;
+
+  $('#zk-area').classList.add('hidden');
+  $('#reveal-area').classList.add('hidden');
+
+  lucide.createIcons();
+}
+
+async function commitAnswer() {
+  const input = $('#game-answer-input');
+  const rawVal = input.value.replace(/[^\d.-]/g,'');
+  if(!rawVal) {
+    showToast(t('emptyAnswer'), 'error');
+    input.classList.add('anim-shake');
+    setTimeout(()=>input.classList.remove('anim-shake'),400);
+    return;
+  }
+
+  const answer = parseInt(rawVal,10);
+  if(isNaN(answer)) { showToast(t('emptyAnswer'),'error'); return; }
+
+  // Generate commitment
+  const nonce = generateNonce();
+  const hash = await sha256(answer + ':' + nonce);
+  state.playerCommitment = { hash, nonce, answer };
+
+  // Generate opponent commitments
+  const oppData = generateOpponentAnswers(state.currentQ.answer);
+  state.opponentCommitments = await Promise.all(oppData.map(async opp => {
+    const oppNonce = generateNonce();
+    const oppHash = await sha256(opp.answer + ':' + oppNonce);
+    return { ...opp, hash:oppHash, nonce:oppNonce };
+  }));
+
+  sfxCommit();
+
+  // Animate: hide input, show commitment
+  $('#game-input-wrap').classList.add('hidden');
+  $('#game-actions').classList.add('hidden');
+  $('#zk-area').classList.remove('hidden');
+
+  // Render player fingerprint & hash
+  renderFingerprint('zk-fingerprint', hash);
+  renderHashText('zk-hash', hash);
+
+  // Render opponents (blurred)
+  const oppList = $('#zk-opponent-list');
+  oppList.innerHTML = state.opponentCommitments.map((opp, i) => `
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:${opp.color}20;color:${opp.color}">${opp.name[0]}</div>
+      <div class="flex-1">
+        <div class="text-sm font-semibold">${opp.name}</div>
+        <div class="font-mono text-xs text-stone-600 blur-reveal" id="opp-hash-${i}">${opp.hash.substring(0,16)}...</div>
+      </div>
+      <div class="w-2 h-2 rounded-full bg-brand animate-pulse"></div>
+    </div>
+  `).join('');
+
+  $('#btn-commit-text').textContent = t('lockAnswer');
+  lucide.createIcons();
+}
+
+async function revealAnswers() {
+  sfxReveal();
+
+  // Hide zk-area actions, show reveal area
+  $('#btn-reveal').disabled = true;
+  $('#btn-reveal').style.opacity = '.4';
+
+  await new Promise(r => setTimeout(r, 800));
+
+  // Verify player's commitment
+  const pc = state.playerCommitment;
+  const playerVerified = (await sha256(pc.answer + ':' + pc.nonce)) === pc.hash;
+
+  // Verify opponents
+  for(let opp of state.opponentCommitments) {
+    if(opp.cheating) {
+      // Hash won't match because they'd show fakeAnswer
+      opp.verified = false;
+    } else {
+      opp.verified = (await sha256(opp.answer + ':' + opp.nonce)) === opp.hash;
+    }
+  }
+
+  // Count ZK stats
+  const allPlayers = [{verified:playerVerified}, ...state.opponentCommitments];
+  state.zkHonestCount += allPlayers.filter(p=>p.verified).length;
+  state.zkCheatCount += allPlayers.filter(p=>!p.verified).length;
+
+  // Check if player is correct
+  const isCorrect = pc.answer === state.currentQ.answer;
+  if(isCorrect) { state.score += POINTS_PER_CORRECT; sfxCorrect(); } else { sfxWrong(); }
+
+  // Save round result
+  state.results.push({
+    correct: isCorrect,
+    playerAnswer: pc.answer,
+    correctAnswer: state.currentQ.answer,
+    explanation: state.currentQ.explanation,
+    playerVerified,
+    opponents: state.opponentCommitments.map(o=>({
+      name:o.name, color:o.color, answer:o.answer, correct:o.answer===state.currentQ.answer, verified:o.verified, cheating:o.cheating
+    }))
+  });
+
+  // Update score display
+  $('#game-score').textContent = state.score;
+
+  // Build verification box
+  const verBox = $('#reveal-verification');
+  verBox.innerHTML = playerVerified
+    ? `<div class="flex items-center gap-2 text-brand"><i data-lucide="shield-check" class="w-6 h-6"></i><span class="font-bold">${t('zkVerified')}</span></div>
+       <p class="text-xs text-stone-500 mt-1 font-mono">${pc.hash.substring(0,32)}...</p>`
+    : `<div class="flex items-center gap-2 text-danger"><i data-lucide="shield-x" class="w-6 h-6"></i><span class="font-bold">${t('zkFailed')}</span></div>`;
+  verBox.style.borderColor = playerVerified ? 'var(--brand)' : 'var(--danger)';
+
+  // Build comparison box
+  const compBox = $('#reveal-comparison');
+  let compHTML = `
+    <div class="flex items-center justify-between py-2 border-b border-stone-800">
+      <span class="font-semibold">${t('yourAnswer')}</span>
+      <span class="font-mono ${isCorrect?'text-brand':'text-danger'}">${state.currentQ.unit==='Rp'?fmtRp(pc.answer):pc.answer} ${isCorrect?'✓ '+t('correct'):'✗ '+t('wrong')}</span>
+    </div>
+  `;
+  for(const opp of state.opponentCommitments) {
+    const oppCorrect = opp.answer === state.currentQ.answer;
+    const statusIcon = opp.verified ? (oppCorrect ? '✓' : '✗') : '⚠';
+    const statusClass = opp.verified ? (oppCorrect ? 'text-brand' : 'text-stone-400') : 'text-danger';
+    const cheatingLabel = opp.cheating ? ` <span class="text-danger text-xs font-bold">${lang==='id'?'CURANG!':'CHEAT!'}</span>` : '';
+    compHTML += `
+      <div class="flex items-center justify-between py-2 border-b border-stone-800/50">
+        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" style="background:${opp.color}"></span>${opp.name}${cheatingLabel}</span>
+        <span class="font-mono ${statusClass}">${state.currentQ.unit==='Rp'?fmtRp(opp.answer):opp.answer} ${statusIcon}</span>
+      </div>
+    `;
+  }
+  compBox.innerHTML = compHTML;
+
+  // Correct answer box
+  const corrBox = $('#reveal-correct-box');
+  const ansText = state.currentQ.unit==='Rp' ? fmtRp(state.currentQ.answer) : state.currentQ.answer;
+  corrBox.innerHTML = `
+    <div class="flex items-center gap-2 mb-2"><i data-lucide="check-circle" class="w-5 h-5 text-gold"></i><span class="font-semibold text-gold">${t('correctAnswer')}</span></div>
+    <div class="text-2xl font-bold font-mono mb-2">${ansText}</div>
+    <p class="text-sm text-stone-400">${state.currentQ.explanation}</p>
+    ${isCorrect ? `<div class="mt-3 text-brand font-bold">${t('points',POINTS_PER_CORRECT)}</div>` : ''}
+  `;
+  corrBox.style.borderColor = isCorrect ? 'rgba(251,191,36,.3)' : 'rgba(251,113,133,.3)';
+
+  // Next/finish button
+  const isLast = state.round >= ROUNDS_PER_GAME - 1;
+  $('#btn-next-text').textContent = isLast ? t('finishBtn') : t('nextBtn');
+
+  // Reveal opponents' hashes
+  state.opponentCommitments.forEach((opp,i) => {
+    const el = document.getElementById(`opp-hash-${i}`);
+    if(el) { el.classList.add('revealed'); }
+  });
+
+  // Show reveal area
+  $('#zk-area').classList.add('hidden');
+  $('#reveal-area').classList.remove('hidden');
+  $('#reveal-area').classList.add('anim-fade-up');
+
+  lucide.createIcons();
+}
+
+function nextQuestion() {
+  state.round++;
+  if(state.round >= ROUNDS_PER_GAME) {
+    showResults();
+  } else {
+    // Reset reveal area animation class
+    $('#reveal-area').classList.remove('anim-fade-up');
+    $('#btn-reveal').disabled = false;
+    $('#btn-reveal').style.opacity = '1';
+    loadQuestion();
+  }
+  sfxClick();
+}
+
+function showResults() {
+  showScreen('screen-results');
+
+  const total = ROUNDS_PER_GAME * POINTS_PER_CORRECT;
+  const pct = state.score / total;
+  const catInfo = CATEGORIES[state.category];
+
+  // Result emoji & title
+  let emoji, titleKey;
+  if(pct >= .9) { emoji='🏆'; titleKey='resultGreat'; }
+  else if(pct >= .7) { emoji='🎯'; titleKey='resultGood'; }
+  else if(pct >= .4) { emoji='📝'; titleKey='resultOk'; }
+  else { emoji='💪'; titleKey='resultBad'; }
+
+  $('#results-emoji').textContent = emoji;
+  $('#results-title').textContent = t(titleKey);
+  $('#results-category').textContent = t(catInfo.key);
+  $('#results-score').textContent = state.score;
+  $('#results-score-label').textContent = t('resultsOf', total);
+
+  // Breakdown
+  let bdHTML = `<div class="text-sm font-semibold text-stone-300 mb-3">${lang==='id'?'Rincian Per Ronde':'Round Breakdown'}</div>`;
+  state.results.forEach((r, i) => {
+    const icon = r.correct
+      ? `<i data-lucide="check-circle" class="w-4 h-4 text-brand"></i>`
+      : `<i data-lucide="x-circle" class="w-4 h-4 text-danger"></i>`;
+    const ansStr = state.questions[i].unit==='Rp' ? fmtRp(r.playerAnswer) : r.playerAnswer;
+    const corrStr = state.questions[i].unit==='Rp' ? fmtRp(r.correctAnswer) : r.correctAnswer;
+    bdHTML += `
+      <div class="flex items-center gap-3 py-2 ${i<state.results.length-1?'border-b border-stone-800/50':''}">
+        ${icon}
+        <span class="text-xs text-stone-500 w-6">${i+1}.</span>
+        <span class="font-mono text-sm flex-1 ${r.correct?'text-stone-200':'text-danger'}">${ansStr}</span>
+        ${!r.correct?`<span class="font-mono text-xs text-stone-500">${corrStr}</span>`:'<span class="text-xs text-brand font-bold">+100</span>'}
+      </div>
+    `;
+  });
+  $('#results-breakdown').innerHTML = bdHTML;
+
+  // ZK summary
+  const totalRounds = ROUNDS_PER_GAME * (1 + OPPONENTS.length); // player + 3 opponents per round
+  $('#results-zk-summary').innerHTML = `
+    <div class="text-sm font-semibold text-stone-300 mb-3">Zero-Knowledge Summary</div>
+    <div class="flex gap-4">
+      <div class="flex-1 bg-brand/5 border border-brand/20 rounded-xl p-3 text-center">
+        <div class="text-2xl font-bold text-brand">${state.zkHonestCount}</div>
+        <div class="text-xs text-stone-400">${t('honestPlayers',state.zkHonestCount)}</div>
+      </div>
+      <div class="flex-1 bg-danger/5 border border-danger/20 rounded-xl p-3 text-center">
+        <div class="text-2xl font-bold text-danger">${state.zkCheatCount}</div>
+        <div class="text-xs text-stone-400">${t('cheatingCaught',state.zkCheatCount)}</div>
+      </div>
+    </div>
+    <p class="text-xs text-stone-500 mt-3">${lang==='id'
+      ? 'Setiap jawaban dilindungi oleh SHA-256 commitment. Pemain yang hash-nya tidak cocok tertangkap mencoba mengubah jawaban.'
+      : 'Every answer is protected by SHA-256 commitment. Players whose hash doesn\'t match were caught trying to change their answer.'}</p>
+  `;
+
+  lucide.createIcons();
+}
+
+function replayCategory() { startGame(state.category); }
+function confirmQuit() { openModal('modal-quit'); }
+function quitGame() { closeModal('modal-quit'); showScreen('screen-modes'); }
+
+/* ========================================
+   TOAST
+   ======================================== */
+function showToast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(), 2500);
+}
+
+/* ========================================
+   BACKGROUND PARTICLES (Canvas)
+   ======================================== */
+function initBgCanvas() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, particles = [];
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Buat partikel hex characters
+  const hexChars = '0123456789abcdef';
+  for(let i=0; i<40; i++) {
+    particles.push({
+      x: Math.random()*w, y: Math.random()*h,
+      vx: (Math.random()-.5)*.3, vy: (Math.random()-.5)*.2 - .1,
+      char: hexChars[randInt(0,15)],
+      size: 10 + Math.random()*8,
+      opacity: .03 + Math.random()*.06,
+      life: Math.random()*1000
+    });
+  }
+
+  function animate() {
+    ctx.clearRect(0,0,w,h);
+    ctx.font = '14px JetBrains Mono, monospace';
+
+    for(const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life += .5;
+
+      // Ganti karakter sesekali
+      if(Math.random()<.003) p.char = hexChars[randInt(0,15)];
+
+      // Wrap around
+      if(p.x < -20) p.x = w+20;
+      if(p.x > w+20) p.x = -20;
+      if(p.y < -20) p.y = h+20;
+      if(p.y > h+20) p.y = -20;
+
+      const flickerOpacity = p.opacity * (.7 + .3*Math.sin(p.life*.02));
+      ctx.fillStyle = `rgba(52,211,153,${flickerOpacity})`;
+      ctx.font = `${p.size}px JetBrains Mono, monospace`;
+      ctx.fillText(p.char, p.x, p.y);
+    }
+
+    // Gambar garis koneksi tipis antar partikel yang dekat
+    ctx.strokeStyle = 'rgba(52,211,153,.015)';
+    ctx.lineWidth = 1;
+    for(let i=0;i<particles.length;i++) {
+      for(let j=i+1;j<particles.length;j++) {
+        const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  // Cek preferensi reduced motion
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    animate();
+  }
+}
+
+/* ========================================
+   ENTER KEY HANDLER
+   ======================================== */
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') {
+    if(state.screen === 'screen-game') {
+      const inputWrap = $('#game-input-wrap');
+      const zkArea = $('#zk-area');
+      const revealArea = $('#reveal-area');
+      if(!inputWrap.classList.contains('hidden') && !$('#btn-commit').disabled) {
+        commitAnswer();
+      } else if(!zkArea.classList.contains('hidden') && !$('#btn-reveal').disabled) {
+        revealAnswers();
+      } else if(!revealArea.classList.contains('hidden')) {
+        nextQuestion();
+      }
+    }
+  }
+});
+
+/* ========================================
+   INIT
+   ======================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  applyLang();
+  initBgCanvas();
+  lucide.createIcons();
+});
+</script>
+</body>
+</html>
